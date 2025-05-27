@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Network Topology - SDN Control{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="page-title">Network Topology</h2>
+        <p class="text-muted">Network structure and device overview</p>
+    </div>
+</div>
+
+<!-- Topology Overview -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Network Map</h6>
+            </div>
+            <div class="card-body">
+                <div class="topology-diagram text-center">
+                    <div class="topology-layer">
+                        <h6 class="text-muted mb-3">Student Subnet (10.0.0.0/24)</h6>
+                        <div class="host-group">
+                            <div class="host-node student">h1s</div>
+                            <div class="host-node student">h2s</div>
+                            <div class="host-node student">h3s</div>
+                            <div class="host-node student">...</div>
+                            <div class="host-node student">h8s</div>
+                        </div>
+                    </div>
+                    
+                    <div class="topology-layer">
+                        <h6 class="text-muted mb-3">Switches</h6>
+                        <div class="switch-group">
+                            <div class="switch-node">s1</div>
+                            <div class="switch-node">s2</div>
+                            <div class="switch-node">s3</div>
+                            <div class="switch-node">s4</div>
+                            <div class="switch-node">s5</div>
+                            <div class="switch-node">s6</div>
+                            <div class="switch-node">s7</div>
+                            <div class="switch-node">s8</div>
+                        </div>
+                    </div>
+                    
+                    <div class="topology-layer">
+                        <h6 class="text-muted mb-3">Faculty Subnet (10.0.1.0/24)</h6>
+                        <div class="host-group">
+                            <div class="host-node faculty">h1f</div>
+                            <div class="host-node faculty">h2f</div>
+                            <div class="host-node faculty">h3f</div>
+                            <div class="host-node faculty">...</div>
+                            <div class="host-node faculty">h8f</div>
+                        </div>
+                    </div>
+                    
+                    <div class="topology-layer">
+                        <h6 class="text-muted mb-3">Server Subnet (10.0.2.0/24)</h6>
+                        <div class="server-group">
+                            <div class="server-node">srv1 (Mail)</div>
+                            <div class="server-node">srv2 (RTMP)</div>
+                            <div class="server-node">srv3 (Call)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="topology-layer">
+                        <div class="router-node">Router (r0)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Device List</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshDevices()">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="deviceList">
+                    <div class="text-center">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        <div class="mt-2">Loading devices...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Statistics -->
+<div class="row">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                <h5>8</h5>
+                <small class="text-muted">Student Hosts</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-user-tie fa-2x text-success mb-2"></i>
+                <h5>8</h5>
+                <small class="text-muted">Faculty Hosts</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-server fa-2x text-info mb-2"></i>
+                <h5>3</h5>
+                <small class="text-muted">Servers</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <i class="fas fa-network-wired fa-2x text-warning mb-2"></i>
+                <h5 id="switchCount">--</h5>
+                <small class="text-muted">Switches</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    refreshDevices();
+});
+
+function refreshDevices() {
+    const deviceList = document.getElementById('deviceList');
+    deviceList.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <div class="mt-2">Loading devices...</div>
+        </div>
+    `;
+    
+    fetch('/api/devices')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayDevices(data.devices);
+                document.getElementById('switchCount').textContent = data.devices.length;
+            } else {
+                deviceList.innerHTML = '<div class="text-danger">Failed to load devices</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching devices:', error);
+            deviceList.innerHTML = '<div class="text-danger">Error loading devices</div>';
+        });
+}
+
+function displayDevices(devices) {
+    const deviceList = document.getElementById('deviceList');
+    
+    if (devices.length === 0) {
+        deviceList.innerHTML = '<div class="text-muted">No devices found</div>';
+        return;
+    }
+    
+    let html = '';
+    devices.forEach(device => {
+        const isAvailable = device.available;
+        const statusClass = isAvailable ? 'success' : 'danger';
+        const statusIcon = isAvailable ? 'fa-check-circle' : 'fa-times-circle';
+        
+        html += `
+            <div class="device-item mb-2 p-2 border rounded">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${device.id}</strong>
+                        <div class="small text-muted">${device.type || 'Switch'}</div>
+                    </div>
+                    <div class="text-${statusClass}">
+                        <i class="fas ${statusIcon}"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    deviceList.innerHTML = html;
+}
+</script>
+{% endblock %}
