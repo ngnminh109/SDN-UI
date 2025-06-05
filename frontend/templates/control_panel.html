@@ -167,6 +167,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(updateControlPanel, 10000); // Update every 10 seconds
     loadTopologies();
     loadFlowrules();
+
+    // Restore state after a delay to ensure dropdowns are populated
+    setTimeout(restoreControlPanelState, 1000);
 });
 
 function updateControlPanel() {
@@ -319,6 +322,9 @@ function logOperation(message, type) {
 
     logContainer.appendChild(logEntry);
     logContainer.scrollTop = logContainer.scrollHeight;
+
+    // Save log to localStorage
+    saveControlPanelState();
 }
 
 function clearLog() {
@@ -342,12 +348,14 @@ function loadTopologies() {
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('topologySelect');
-            data.topologies.forEach(topology => {
-                const option = document.createElement('option');
-                option.value = topology;
-                option.textContent = topology;
-                select.appendChild(option);
-            });
+            if (data.status === 'success') {
+                data.topologies.forEach(topology => {
+                    const option = document.createElement('option');
+                    option.value = topology.name;
+                    option.textContent = topology.name;
+                    select.appendChild(option);
+                });
+            }
         })
         .catch(error => console.error('Error loading topologies:', error));
 }
@@ -357,12 +365,14 @@ function loadFlowrules() {
         .then(response => response.json())
         .then(data => {
             const select = document.getElementById('flowruleSelect');
-            data.flowrules.forEach(flowrule => {
-                const option = document.createElement('option');
-                option.value = flowrule;
-                option.textContent = flowrule;
-                select.appendChild(option);
-            });
+            if (data.status === 'success') {
+                data.flowrules.forEach(flowrule => {
+                    const option = document.createElement('option');
+                    option.value = flowrule.name;
+                    option.textContent = flowrule.name;
+                    select.appendChild(option);
+                });
+            }
         })
         .catch(error => console.error('Error loading flowrules:', error));
 }
@@ -377,7 +387,7 @@ function selectTopology() {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ topology: topology })
+        body: JSON.stringify({ topology_name: topology })
     })
     .then(response => response.json())
     .then(data => {
@@ -400,7 +410,7 @@ function selectFlowrule() {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ flowrule: flowrule })
+        body: JSON.stringify({ flowrule_name: flowrule })
     })
     .then(response => response.json())
     .then(data => {
@@ -412,5 +422,111 @@ function selectFlowrule() {
     })
     .catch(error => logOperation(`Error selecting flow rules: ${error.message}`, 'error'));
 }
+
+function saveControlPanelState() {
+    const topologySelect = document.getElementById('topologySelect');
+    const flowruleSelect = document.getElementById('flowruleSelect');
+    const operationLog = document.getElementById('operationLog').innerHTML;
+
+    const state = {
+        selectedTopology: topologySelect ? topologySelect.value : '',
+        topologyInfo: document.getElementById('topologyInfo').textContent,
+        selectedFlowrule: flowruleSelect ? flowruleSelect.value : '',
+        flowruleInfo: document.getElementById('flowruleInfo').textContent,
+        operationLog: operationLog,
+        timestamp: Date.now()
+    };
+
+    localStorage.setItem('controlPanelState', JSON.stringify(state));
+}
+
+function restoreControlPanelState() {
+    try {
+        const savedState = localStorage.getItem('controlPanelState');
+        if (!savedState) return;
+
+        const state = JSON.parse(savedState);
+
+        // Check if state is recent (within last 24 hours)
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        if (Date.now() - state.timestamp > maxAge) {
+            localStorage.removeItem('controlPanelState');
+            return;
+        }
+
+        // Restore selections
+        if (state.selectedTopology) {
+            const topologySelect = document.getElementById('topologySelect');
+            if (topologySelect) {
+                topologySelect.value = state.selectedTopology;
+                document.getElementById('topologyInfo').textContent = state.topologyInfo || `Selected topology: ${state.selectedTopology}`;
+            }
+        }
+
+        if (state.selectedFlowrule) {
+            const flowruleSelect = document.getElementById('flowruleSelect');
+            if (flowruleSelect) {
+                flowruleSelect.value = state.selectedFlowrule;
+                document.getElementById('flowruleInfo').textContent = state.flowruleInfo || `Selected flow rules: ${state.selectedFlowrule}`;
+            }
+        }
+
+        // Restore operation log
+        if (state.operationLog) {
+            document.getElementById('operationLog').innerHTML = state.operationLog;
+            // Scroll to bottom
+            const logContainer = document.getElementById('operationLog');
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+    } catch (error) {
+        console.error('Failed to restore control panel state:', error);
+        localStorage.removeItem('controlPanelState');
+    }
+}
+
+function restoreTopologySelection() {
+    try {
+        const savedState = localStorage.getItem('controlPanelState');
+        if (!savedState) return;
+
+        const state = JSON.parse(savedState);
+        if (state.selectedTopology) {
+            const topologySelect = document.getElementById('topologySelect');
+            if (topologySelect) {
+                topologySelect.value = state.selectedTopology;
+                document.getElementById('topologyInfo').textContent = state.topologyInfo || `Selected topology: ${state.selectedTopology}`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to restore topology selection:', error);
+    }
+}
+
+function restoreFlowruleSelection() {
+    try {
+        const savedState = localStorage.getItem('controlPanelState');
+        if (!savedState) return;
+
+        const state = JSON.parse(savedState);
+        if (state.selectedFlowrule) {
+            const flowruleSelect = document.getElementById('flowruleSelect');
+            if (flowruleSelect) {
+                flowruleSelect.value = state.selectedFlowrule;
+                document.getElementById('flowruleInfo').textContent = state.flowruleInfo || `Selected flow rules: ${state.selectedFlowrule}`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to restore flowrule selection:', error);
+    }
+}
+
+// Clear state on page refresh (not on tab change)
+window.addEventListener('beforeunload', function() {
+    // Only clear if it's a full page reload
+    if (performance.navigation.type === 1) {
+        localStorage.removeItem('controlPanelState');
+    }
+});
 </script>
 {% endblock %}
