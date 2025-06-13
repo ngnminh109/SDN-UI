@@ -146,14 +146,20 @@ scp -P 22 gui.py flow_rule.py topo_cam5.py jason@192.168.180.130:/home/jason/SDN
 
 ## Application Execution
 
-Visit:
-
-```bash
-http://192.168.180.130:5000/
-```
-
 Run application:
 
 ```bash
 sudo python3 main.py
+```
+
+Visit:
+
+```bash
+http://<vm-ip>:5000/
+```
+
+Example:
+
+```bash
+http://192.168.180.130:5000/
 ```
