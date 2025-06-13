@@ -188,13 +188,8 @@ def run():
 
     setup_qos_on_host_ports(net)
 
-    print("\nNetwork is up. Starting CLI...\n")
-    custom_cli(net)
-
-    # QoS cleanup after CLI exits
-    cleanup_qos()
-
-    net.stop()
+    print("\nNetwork is up and ready.\n")
+    return net
 
 # change to h8f
 
