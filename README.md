@@ -56,7 +56,7 @@ sudo docker run -t -d -p 6653:6653 -p 8181:8181 -p 8101:8101 -p 5005:5005 -p 830
 ### Verify container
 
 ```bash
-wget -q -O - http://192.168.180.130:8181/onos/ui > /dev/null
+wget -q -O - http://localhost:8181/onos/ui > /dev/null
 ```
 
 ### Container management commands
