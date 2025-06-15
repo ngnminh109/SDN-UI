@@ -14,14 +14,14 @@ The SDN Web Application provides a user-friendly interface for:
 
 ## Starting the Application
 
-1. Ensure your SDN environment is set up (see README.md)
+1. Ensure your SDN environment is set up (see env_setup.md)
 2. Navigate to the frontend directory:
    ```bash
    cd frontend
    ```
 3. Start the web server:
    ```bash
-   python3 main.py
+   sudo python3 main.py
    ```
 4. Open your browser and go to: `http://<your-vm-ip>:5000`
 
