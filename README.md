@@ -163,3 +163,36 @@ Example:
 ```bash
 http://192.168.180.130:5000/
 ```
+
+## Environment Variables (Optional)
+
+You can customize ONOS connection settings using environment variables:
+
+```bash
+export ONOS_IP="127.0.0.1"
+export ONOS_PORT="8181"
+export ONOS_USERNAME="onos"
+export ONOS_PASSWORD="rocks"
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **ONOS container not starting:** Check if ports are already in use
+2. **Network connectivity issues:** Verify IP addresses and firewall settings
+3. **Permission errors:** Ensure user is in docker group
+4. **Mininet issues:** Run with sudo if needed: `sudo python3 main.py`
+
+### Useful Commands
+
+```bash
+# Check ONOS status
+curl -u onos:rocks http://localhost:8181/onos/v1/devices
+
+# Check Mininet installation
+sudo mn --test pingall
+
+# View docker logs
+sudo docker logs onos
+```
