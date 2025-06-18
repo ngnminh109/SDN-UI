@@ -352,62 +352,7 @@ def parse_tcp_multithreaded_results(output):
 
     return results
 
-def parse_iperf_results(output):
-    """Parse iPerf output to extract bandwidth results"""
-    import re
 
-    results = {
-        "student_to_servers": {},
-        "faculty_to_servers": {},
-        "summary": {
-            "total_tests": 0,
-            "avg_bandwidth": 0,
-            "max_bandwidth": 0,
-            "min_bandwidth": float('inf')
-        }
-    }
-
-    # Parse the average bandwidth lines from topology output
-    lines = output.split('\n')
-    bandwidth_values = []
-
-    for line in lines:
-        # Look for summary lines like "Student to srv1: Avg Bandwidth: 25.50 Mbps"
-        if 'Avg Bandwidth:' in line and ('Student to' in line or 'Faculty to' in line):
-            # Extract bandwidth value
-            match = re.search(r'Avg Bandwidth:\s*(\d+\.\d+)\s*Mbps', line)
-            if match:
-                bandwidth = float(match.group(1))
-                bandwidth_values.append(bandwidth)
-
-                if 'Student to' in line:
-                    server_match = re.search(r'Student to (srv\d+)', line)
-                    if server_match:
-                        results["student_to_servers"][server_match.group(1)] = bandwidth
-                elif 'Faculty to' in line:
-                    server_match = re.search(r'Faculty to (srv\d+)', line)
-                    if server_match:
-                        results["faculty_to_servers"][server_match.group(1)] = bandwidth
-
-    # If no summary format found, try to parse individual test results
-    if not bandwidth_values:
-        for line in lines:
-            if 'Mbits/sec' in line:
-                match = re.search(r'(\d+\.\d+)\s+Mbits/sec', line)
-                if match:
-                    bandwidth = float(match.group(1))
-                    bandwidth_values.append(bandwidth)
-
-    # Calculate summary statistics
-    if bandwidth_values:
-        results["summary"]["total_tests"] = len(bandwidth_values)
-        results["summary"]["avg_bandwidth"] = sum(bandwidth_values) / len(bandwidth_values)
-        results["summary"]["max_bandwidth"] = max(bandwidth_values)
-        results["summary"]["min_bandwidth"] = min(bandwidth_values)
-    else:
-        results["summary"]["min_bandwidth"] = 0
-
-    return results
 
 @app.route("/api/inject_flows", methods=["POST"])
 def inject_flows():
@@ -437,47 +382,22 @@ def inject_flows():
 
 @app.route('/api/clear_flows', methods=['POST'])
 def clear_flows():
-    """Clear all flow rules from ONOS controller"""
+    """Clear all flow rules using the selected flow rule module"""
     try:
-        # ONOS connection details (from global variables)
-        onos_ip = ONOS_IP
-        onos_port = ONOS_PORT
-        username = ONOS_USERNAME
-        password = ONOS_PASSWORD
+        if current_flow_rule is None:
+            return jsonify({"status": "error", "message": "No flow rule selected"}), 400
 
-        # Get all devices first
-        devices_url = f"http://{onos_ip}:{onos_port}/onos/v1/devices"
-        devices_response = requests.get(
-            devices_url,
-            auth=HTTPBasicAuth(username, password)
-        )
+        # Check if the selected flow rule module has clear_flow_rules function
+        if not hasattr(current_flow_rule, 'clear_flow_rules'):
+            return jsonify({"status": "error", "message": "Selected flow rule does not support clearing flows"}), 400
 
-        if devices_response.status_code != 200:
-            return jsonify({'status': 'error', 'message': 'Failed to get devices from ONOS'})
+        # Use the flow rule module's clear function
+        current_flow_rule.clear_flow_rules()
 
-        devices = devices_response.json().get('devices', [])
-        cleared_count = 0
-
-        # Clear flows from each device
-        for device in devices:
-            device_id = device.get('id')
-            if device_id:
-                flows_url = f"http://{onos_ip}:{onos_port}/onos/v1/flows/{device_id}"
-                delete_response = requests.delete(
-                    flows_url,
-                    auth=HTTPBasicAuth(username, password)
-                )
-
-                if delete_response.status_code in [200, 204]:
-                    cleared_count += 1
-
-        if cleared_count > 0:
-            return jsonify({
-                'status': 'success', 
-                'message': f'Flow rules cleared from {cleared_count} devices'
-            })
-        else:
-            return jsonify({'status': 'error', 'message': 'No devices found or failed to clear flows'})
+        return jsonify({
+            'status': 'success', 
+            'message': 'Flow rules cleared successfully using selected flow rule module'
+        })
 
     except Exception as e:
         app.logger.error(f"Error clearing flows: {str(e)}")
@@ -721,72 +641,3 @@ def get_onos_devices():
     except Exception as e:
         app.logger.error(f"Error connecting to ONOS: {str(e)}")
         return []
-
-def parse_tcp_multithreaded_results(output):
-    """Parses the output from the multithreaded TCP iperf test."""
-    import re
-
-    results = {
-        "student_results": {},
-        "faculty_results": {},
-        "summary": {
-            "student_avg_bandwidth": 0,
-            "student_avg_latency": 0,
-            "faculty_avg_bandwidth": 0,
-            "faculty_avg_latency": 0,
-            "total_tests": 0,
-            "avg_bandwidth": 0,
-            "max_bandwidth": 0,
-            "min_bandwidth": 0
-        }
-    }
-
-    lines = output.split('\n')
-    bandwidth_values = []
-    latency_values = []
-
-    # Parse individual test results
-    for line in lines:
-        # Look for lines like "h1s -> srv1 [Request 1]: 25.50 Mbps, Latency: 1.23 ms"
-        match = re.search(r'(h\d+[sf]) -> (srv\d+) \[Request \d+\]: ([\d.]+) Mbps, Latency: ([\d.]+) ms', line)
-        if match:
-            host = match.group(1)
-            bandwidth = float(match.group(3))
-            latency = float(match.group(4))
-
-            bandwidth_values.append(bandwidth)
-            latency_values.append(latency)
-
-            if host.endswith('s'):
-                if host not in results["student_results"]:
-                    results["student_results"][host] = []
-                results["student_results"][host].append({"bandwidth": bandwidth, "latency": latency})
-            else:
-                if host not in results["faculty_results"]:
-                    results["faculty_results"][host] = []
-                results["faculty_results"][host].append({"bandwidth": bandwidth, "latency": latency})
-
-    # Parse summary lines from topology output
-    for line in lines:
-        # Look for summary lines like "Student to srv1: Avg Bandwidth: 25.50 Mbps, Avg Latency: 1.23 ms"
-        match = re.search(r'(Student|Faculty) to srv\d+: Avg Bandwidth: ([\d.]+) Mbps, Avg Latency: ([\d.]+) ms', line)
-        if match:
-            group = match.group(1).lower()
-            avg_bw = float(match.group(2))
-            avg_lat = float(match.group(3))
-
-            results["summary"][f"{group}_avg_bandwidth"] = avg_bw
-            results["summary"][f"{group}_avg_latency"] = avg_lat
-
-    # Calculate overall summary statistics
-    if bandwidth_values:
-        results["summary"]["avg_bandwidth"] = sum(bandwidth_values) / len(bandwidth_values)
-        results["summary"]["max_bandwidth"] = max(bandwidth_values)
-        results["summary"]["min_bandwidth"] = min(bandwidth_values)
-
-    # Calculate total tests
-    total_tests = sum(len(tests) for tests in results["student_results"].values())
-    total_tests += sum(len(tests) for tests in results["faculty_results"].values())
-    results["summary"]["total_tests"] = total_tests
-
-    return results
