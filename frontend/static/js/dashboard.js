@@ -1,33 +1,6 @@
 // Global dashboard utilities and functions
 
-// Flow injection function
-function injectFlows(ruleSet = 1) {
-    const button = event.target;
-    const originalText = button.innerHTML;
 
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Injecting...';
-
-    const endpoint = ruleSet === 1 ? '/api/inject_flows' : '/api/inject_flows_2';
-
-    fetch(endpoint, { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showStatusMessage(`Flow Rules ${ruleSet} injected successfully`, 'success');
-            } else {
-                showStatusMessage(`Failed to inject Flow Rules ${ruleSet}: ${data.message}`, 'danger');
-            }
-        })
-        .catch(error => {
-            console.error(`Error injecting Flow Rules ${ruleSet}:`, error);
-            showStatusMessage(`Error injecting Flow Rules ${ruleSet}`, 'danger');
-        })
-        .finally(() => {
-            button.disabled = false;
-            button.innerHTML = originalText;
-        });
-}
 
 // Status message utility
 function showStatusMessage(message, type = 'info', duration = 5000) {
@@ -372,19 +345,3 @@ document.addEventListener('DOMContentLoaded', function() {
         updateDeviceCount();
     }, 30000);
 });
-
-function injectFlowRules() {
-    fetch('/api/inject_flows', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                showToast('success', data.message);
-            } else {
-                showToast('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error injecting flow rules:', error);
-            showToast('error', 'Failed to inject flow rules');
-        });
-}
