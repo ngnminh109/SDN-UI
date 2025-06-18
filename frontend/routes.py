@@ -364,44 +364,42 @@ def inject_flows():
         if current_flow_rule is None:
             return jsonify({"status": "error", "message": "No flow rule selected"}), 400
 
+        # Log the flow rule module being used
+        flow_rule_name = getattr(current_flow_rule, '__name__', 'Unknown')
+        app.logger.info(f"Injecting flows using module: {flow_rule_name}")
+        
+        # Check ONOS connection first
+        try:
+            test_url = f"http://{ONOS_IP}:{ONOS_PORT}/onos/v1/devices"
+            test_response = requests.get(test_url, auth=HTTPBasicAuth(ONOS_USERNAME, ONOS_PASSWORD), timeout=5)
+            if test_response.status_code != 200:
+                return jsonify({
+                    "status": "error", 
+                    "message": f"Cannot connect to ONOS controller at {ONOS_IP}:{ONOS_PORT} (HTTP {test_response.status_code})"
+                }), 500
+        except Exception as e:
+            return jsonify({
+                "status": "error", 
+                "message": f"ONOS connection failed: {str(e)}"
+            }), 500
+
         success = current_flow_rule.inject_flow_rules()
 
         if success:
             return jsonify({
                 "status": "success", 
-                "message": "Flow rules injected successfully"
+                "message": f"Flow rules injected successfully using {flow_rule_name}"
             })
         else:
             return jsonify({
                 "status": "error", 
-                "message": "Failed to inject some flow rules"
+                "message": "Failed to inject some flow rules - check console logs for details"
             }), 500
     except Exception as e:
         app.logger.error(f"Error injecting flows: {str(e)}")
         return jsonify({"status": "error", "message": f"Flow injection failed: {str(e)}"}), 500
 
-@app.route('/api/clear_flows', methods=['POST'])
-def clear_flows():
-    """Clear all flow rules using the selected flow rule module"""
-    try:
-        if current_flow_rule is None:
-            return jsonify({"status": "error", "message": "No flow rule selected"}), 400
 
-        # Check if the selected flow rule module has clear_flow_rules function
-        if not hasattr(current_flow_rule, 'clear_flow_rules'):
-            return jsonify({"status": "error", "message": "Selected flow rule does not support clearing flows"}), 400
-
-        # Use the flow rule module's clear function
-        current_flow_rule.clear_flow_rules()
-
-        return jsonify({
-            'status': 'success', 
-            'message': 'Flow rules cleared successfully using selected flow rule module'
-        })
-
-    except Exception as e:
-        app.logger.error(f"Error clearing flows: {str(e)}")
-        return jsonify({'status': 'error', 'message': f'Flow clear failed: {str(e)}'})
 
 
 @app.route("/api/flows")
@@ -560,6 +558,42 @@ def get_current_selection():
     except Exception as e:
         app.logger.error(f"Error getting current selection: {str(e)}")
         return jsonify({"status": "error", "message": f"Failed to get current selection: {str(e)}"}), 500
+
+@app.route("/api/onos_status")
+def onos_status():
+    """Check ONOS controller connectivity and status"""
+    try:
+        # Test basic connectivity
+        devices_url = f"http://{ONOS_IP}:{ONOS_PORT}/onos/v1/devices"
+        apps_url = f"http://{ONOS_IP}:{ONOS_PORT}/onos/v1/applications"
+        
+        devices_response = requests.get(devices_url, auth=HTTPBasicAuth(ONOS_USERNAME, ONOS_PASSWORD), timeout=5)
+        apps_response = requests.get(apps_url, auth=HTTPBasicAuth(ONOS_USERNAME, ONOS_PASSWORD), timeout=5)
+        
+        return jsonify({
+            "status": "success",
+            "onos_config": {
+                "ip": ONOS_IP,
+                "port": ONOS_PORT,
+                "username": ONOS_USERNAME
+            },
+            "connectivity": {
+                "devices_api": devices_response.status_code == 200,
+                "apps_api": apps_response.status_code == 200
+            },
+            "device_count": len(devices_response.json().get("devices", [])) if devices_response.status_code == 200 else 0,
+            "app_count": len(apps_response.json().get("applications", [])) if apps_response.status_code == 200 else 0
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"ONOS connectivity check failed: {str(e)}",
+            "onos_config": {
+                "ip": ONOS_IP,
+                "port": ONOS_PORT,
+                "username": ONOS_USERNAME
+            }
+        }), 500
 
 
 @app.route("/api/topology")
