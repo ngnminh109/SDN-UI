@@ -284,7 +284,8 @@ function injectFlows() {
         .then(data => {
             if (data.status === 'success') {
                 logOperation('Flow rules injected successfully', 'success');
-                updateControlPanel();
+                // Update flow count immediately
+                setTimeout(updateControlPanel, 1000); // Small delay to ensure ONOS is updated
             } else {
                 logOperation(`Flow injection failed: ${data.message}`, 'error');
             }
@@ -302,7 +303,8 @@ function clearFlows() {
         .then(data => {
             if (data.status === 'success') {
                 logOperation('Flow rules cleared successfully', 'success');
-                updateControlPanel();
+                // Update flow count immediately
+                setTimeout(updateControlPanel, 1000); // Small delay to ensure ONOS is updated
             } else {
                 logOperation(`Flow clear failed: ${data.message}`, 'error');
             }
