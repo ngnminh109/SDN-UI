@@ -68,21 +68,13 @@
                     </div>
                 </div>
 
-                <div class="row g-2 mb-3">
+                <div class="row g-2">
                     <div class="col-md-6">
                         <button class="btn btn-primary w-100" onclick="injectFlows()">
                             <i class="fas fa-stream me-2"></i>Inject Flow Rules
                         </button>
                     </div>
                     <div class="col-md-6">
-                        <button class="btn btn-outline-danger w-100" onclick="clearFlows()">
-                            <i class="fas fa-trash me-2"></i>Clear Flow Rules
-                        </button>
-                    </div>
-                </div>
-
-                <div class="row g-2">
-                    <div class="col-12">
                         <button class="btn btn-warning w-100" onclick="runPingTest()">
                             <i class="fas fa-wifi me-2"></i>Ping Test
                         </button>
@@ -164,8 +156,18 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTopologies();
     loadFlowrules();
 
-    // Restore state after a delay to ensure dropdowns are populated
-    setTimeout(restoreControlPanelState, 1000);
+    // Check if this is a page refresh vs navigation
+    const isPageRefresh = performance.navigation.type === performance.navigation.TYPE_RELOAD ||
+                         performance.getEntriesByType('navigation')[0].type === 'reload';
+    
+    if (isPageRefresh) {
+        // Clear state on page refresh
+        localStorage.removeItem('controlPanelState');
+        clearLog();
+    } else {
+        // Restore state after a delay to ensure dropdowns are populated
+        setTimeout(restoreControlPanelState, 1000);
+    }
 });
 
 function updateControlPanel() {
@@ -295,24 +297,7 @@ function injectFlows() {
         });
 }
 
-function clearFlows() {
-    logOperation('Clearing flow rules...', 'info');
 
-    fetch('/api/clear_flows', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                logOperation('Flow rules cleared successfully', 'success');
-                // Update flow count immediately
-                setTimeout(updateControlPanel, 1000); // Small delay to ensure ONOS is updated
-            } else {
-                logOperation(`Flow clear failed: ${data.message}`, 'error');
-            }
-        })
-        .catch(error => {
-            logOperation(`Flow clear error: ${error.message}`, 'error');
-        });
-}
 
 function logOperation(message, type) {
     const logContainer = document.getElementById('operationLog');
@@ -497,41 +482,7 @@ function restoreControlPanelState() {
     }
 }
 
-function restoreTopologySelection() {
-    try {
-        const savedState = localStorage.getItem('controlPanelState');
-        if (!savedState) return;
 
-        const state = JSON.parse(savedState);
-        if (state.selectedTopology) {
-            const topologySelect = document.getElementById('topologySelect');
-            if (topologySelect) {
-                topologySelect.value = state.selectedTopology;
-                document.getElementById('topologyInfo').textContent = state.topologyInfo || `Selected topology: ${state.selectedTopology}`;
-            }
-        }
-    } catch (error) {
-        console.error('Failed to restore topology selection:', error);
-    }
-}
-
-function restoreFlowruleSelection() {
-    try {
-        const savedState = localStorage.getItem('controlPanelState');
-        if (!savedState) return;
-
-        const state = JSON.parse(savedState);
-        if (state.selectedFlowrule) {
-            const flowruleSelect = document.getElementById('flowruleSelect');
-            if (flowruleSelect) {
-                flowruleSelect.value = state.selectedFlowrule;
-                document.getElementById('flowruleInfo').textContent = state.flowruleInfo || `Selected flow rules: ${state.selectedFlowrule}`;
-            }
-        }
-    } catch (error) {
-        console.error('Failed to restore flowrule selection:', error);
-    }
-}
 
 // Save state when leaving the page (including tab switches)
 window.addEventListener('beforeunload', function() {
