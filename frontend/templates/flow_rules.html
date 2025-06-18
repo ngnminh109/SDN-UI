@@ -89,6 +89,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Filter functionality
     document.getElementById('flowFilter').addEventListener('input', filterFlows);
+    
+    // Auto-refresh when page becomes visible (useful when switching tabs)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshFlows();
+        }
+    });
+    
+    // Refresh every 15 seconds
+    setInterval(refreshFlows, 15000);
 });
 
 function refreshFlows() {
